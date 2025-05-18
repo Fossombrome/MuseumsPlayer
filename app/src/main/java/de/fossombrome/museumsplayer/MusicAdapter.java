@@ -1,7 +1,9 @@
 package de.fossombrome.museumsplayer;
 
 import android.content.Context;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,8 +13,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 
 public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHolder> {
@@ -37,11 +37,14 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
     @Override
     public void onBindViewHolder(@NonNull MusicViewHolder holder, int position) {
         File musicFile = musicFiles.get(position);
-        String songName = musicFile.getName().replaceAll("\\.(mp3|wav|ogg)$", "");
-        String description = loadMarkdownDescription(musicFile);
+
+        String songName = loadTitleFromMetadata(musicFile);
+        String lyrics = loadDescriptionFromMetadata(musicFile);
+
+        Log.d("LyricsTest", "Lyrics geladen: '" + lyrics + "'");
 
         holder.songTitle.setText(songName);
-        holder.songDescription.setText(description);
+        holder.songDescription.setText(lyrics);
 
         holder.playButton.setOnClickListener(v -> playMusic(musicFile));
     }
@@ -81,16 +84,57 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
         }
     }
 
-    private String loadMarkdownDescription(File musicFile) {
-        String mdFilePath = musicFile.getAbsolutePath().replaceAll("\\.(mp3|wav|ogg)$", ".md");
-        File mdFile = new File(mdFilePath);
-        if (mdFile.exists()) {
+
+
+    private String loadTitleFromMetadata(File musicFile) {
+        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+        try {
+            mmr.setDataSource(musicFile.getAbsolutePath());
+            String title = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE);
+            return (title != null && !title.isEmpty())
+                    ? title
+                    : musicFile.getName().replaceAll("\\.(mp3|wav|ogg)$", "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return musicFile.getName().replaceAll("\\.(mp3|wav|ogg)$", "");
+        } finally {
             try {
-                return new String(Files.readAllBytes(Paths.get(mdFilePath)));
+                mmr.release();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        return "<leer>";
     }
+
+    private String loadDescriptionFromMetadata(File musicFile) {
+        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+        try {
+            mmr.setDataSource(musicFile.getAbsolutePath());
+
+            String composer = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPOSER);
+            String year = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR);
+
+            StringBuilder result = new StringBuilder();
+
+            result.append("Komponist: ")
+                    .append((composer != null && !composer.isEmpty()) ? composer : "<keine Angabe>")
+                    .append("\n");
+
+            result.append("Jahr: ")
+                    .append((year != null && !year.isEmpty()) ? year : "<keine Angabe>");
+
+            return result.toString();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "<Fehler beim Auslesen>";
+        } finally {
+            try {
+                mmr.release();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
 }

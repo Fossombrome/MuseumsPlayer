@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="#88AA44"
+    android:background="@drawable/background_rounded"
     android:padding="16dp"
     android:layout_margin="8dp"
     android:elevation="6dp"
@@ -14,7 +14,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="18sp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:textStyle="bold"
         android:paddingBottom="8dp"/>
 
@@ -23,7 +23,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="14sp"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/white"
         android:paddingBottom="16dp"/>
 
     <ImageButton
