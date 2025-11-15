@@ -3,13 +3,15 @@ package de.fossombrome.museumsplayer;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -24,8 +26,8 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
     private RecyclerView recyclerView;
     private LinearLayout playerControls;
-    private Button btnPausePlay, btnRestart, btnStop;
-    private ProgressBar songProgress;
+    private ImageButton btnPausePlay, btnRestart, btnStop;
+    private SeekBar songProgress;
 
     private List<File> audioFiles = new ArrayList<>();
     private static final int REQUEST_PERMISSION = 1;
@@ -33,8 +35,9 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     private MediaPlayer mediaPlayer;
     private File currentPlayingFile;
 
-    private Handler progressHandler = new Handler();
+    private Handler progressHandler = new Handler(Looper.getMainLooper());
     private Runnable progressRunnable;
+    private boolean userSeeking = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,17 +50,57 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         btnRestart = findViewById(R.id.btnRestart);
         btnStop = findViewById(R.id.btnStop);
         songProgress = findViewById(R.id.songProgress);
+        songProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser && mediaPlayer != null) {
+                    seekTo(progress);
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                userSeeking = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                userSeeking = false;
+                if (mediaPlayer != null) {
+                    seekTo(seekBar.getProgress());
+                    refreshSongProgress();
+                }
+            }
+        });
 
         btnPausePlay.setOnClickListener(v -> togglePausePlay());
         btnRestart.setOnClickListener(v -> restartCurrentSong());
         btnStop.setOnClickListener(v -> stopCurrentSong());
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        String requiredPermission = getRequiredStoragePermission();
+        if (ContextCompat.checkSelfPermission(this, requiredPermission)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_PERMISSION);
+                    new String[]{requiredPermission}, REQUEST_PERMISSION);
         } else {
             loadMusicFiles();
+        }
+    }
+
+    private String getRequiredStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return Manifest.permission.READ_MEDIA_AUDIO;
+        }
+        return Manifest.permission.READ_EXTERNAL_STORAGE;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                loadMusicFiles();
+            }
         }
     }
 
@@ -108,6 +151,8 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
             currentPlayingFile = musicFile;
             showPlayerControls();
+            songProgress.setProgress(0);
+            songProgress.setMax(mediaPlayer.getDuration());
             startProgressUpdater();
 
             mediaPlayer.setOnCompletionListener(mp -> stopCurrentSong());
@@ -121,11 +166,12 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         if (mediaPlayer != null) {
             if (mediaPlayer.isPlaying()) {
                 mediaPlayer.pause();
-                btnPausePlay.setText("▶️");
+                btnPausePlay.setImageResource(R.drawable.ic_play);
             } else {
                 mediaPlayer.start();
-                btnPausePlay.setText("⏸️");
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
+            refreshSongProgress();
         }
     }
 
@@ -134,8 +180,9 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             mediaPlayer.seekTo(0);
             if (!mediaPlayer.isPlaying()) {
                 mediaPlayer.start();
-                btnPausePlay.setText("⏸️");
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
+            refreshSongProgress();
         }
     }
 
@@ -146,31 +193,29 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             mediaPlayer = null;
         }
         currentPlayingFile = null;
+        userSeeking = false;
         hidePlayerControls();
         stopProgressUpdater();
     }
 
     private void showPlayerControls() {
         playerControls.setVisibility(View.VISIBLE);
-        btnPausePlay.setText("⏸️");
+        btnPausePlay.setImageResource(R.drawable.ic_pause);
     }
 
     private void hidePlayerControls() {
         playerControls.setVisibility(View.GONE);
         songProgress.setProgress(0);
+        songProgress.setMax(0);
     }
 
     private void startProgressUpdater() {
+        stopProgressUpdater();
         progressRunnable = new Runnable() {
             @Override
             public void run() {
-                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-                    int current = mediaPlayer.getCurrentPosition();
-                    int total = mediaPlayer.getDuration();
-                    if (total > 0) {
-                        int progress = (int) ((current / (float) total) * 100);
-                        songProgress.setProgress(progress);
-                    }
+                if (mediaPlayer != null) {
+                    refreshSongProgress();
                     progressHandler.postDelayed(this, 500);
                 }
             }
@@ -179,7 +224,39 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     }
 
     private void stopProgressUpdater() {
-        progressHandler.removeCallbacks(progressRunnable);
+        if (progressRunnable != null) {
+            progressHandler.removeCallbacks(progressRunnable);
+        }
         songProgress.setProgress(0);
+        songProgress.setMax(0);
+    }
+
+    private void refreshSongProgress() {
+        if (mediaPlayer == null) {
+            songProgress.setProgress(0);
+            return;
+        }
+
+        int total = mediaPlayer.getDuration();
+        if (total > 0) {
+            int current = mediaPlayer.getCurrentPosition();
+            if (!userSeeking) {
+                songProgress.setMax(total);
+                songProgress.setProgress(current);
+            }
+        } else {
+            songProgress.setProgress(0);
+        }
+    }
+
+    private void seekTo(int progress) {
+        if (mediaPlayer != null) {
+            boolean wasPlaying = mediaPlayer.isPlaying();
+            mediaPlayer.seekTo(progress);
+            if (wasPlaying) {
+                mediaPlayer.start();
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
+            }
+        }
     }
 }
