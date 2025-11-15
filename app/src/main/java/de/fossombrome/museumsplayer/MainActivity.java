@@ -3,6 +3,7 @@ package de.fossombrome.museumsplayer;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -52,12 +53,30 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         btnRestart.setOnClickListener(v -> restartCurrentSong());
         btnStop.setOnClickListener(v -> stopCurrentSong());
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        String requiredPermission = getRequiredStoragePermission();
+        if (ContextCompat.checkSelfPermission(this, requiredPermission)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_PERMISSION);
+                    new String[]{requiredPermission}, REQUEST_PERMISSION);
         } else {
             loadMusicFiles();
+        }
+    }
+
+    private String getRequiredStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return Manifest.permission.READ_MEDIA_AUDIO;
+        }
+        return Manifest.permission.READ_EXTERNAL_STORAGE;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                loadMusicFiles();
+            }
         }
     }
 
