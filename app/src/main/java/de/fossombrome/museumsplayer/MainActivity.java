@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     private RecyclerView recyclerView;
     private LinearLayout playerControls;
     private ImageButton btnPausePlay, btnRestart, btnStop;
-    private SeekBar songProgress;
+    private ProgressBar songProgress;
 
     private List<File> audioFiles = new ArrayList<>();
     private static final int REQUEST_PERMISSION = 1;
@@ -50,28 +50,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         btnRestart = findViewById(R.id.btnRestart);
         btnStop = findViewById(R.id.btnStop);
         songProgress = findViewById(R.id.songProgress);
-        songProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && mediaPlayer != null) {
-                    seekTo(progress);
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                userSeeking = true;
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                userSeeking = false;
-                if (mediaPlayer != null) {
-                    seekTo(seekBar.getProgress());
-                    updateSongProgress();
-                }
-            }
-        });
+        songProgress.setMax(100);
 
         btnPausePlay.setOnClickListener(v -> togglePausePlay());
         btnRestart.setOnClickListener(v -> restartCurrentSong());
@@ -152,7 +131,6 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             currentPlayingFile = musicFile;
             showPlayerControls();
             songProgress.setProgress(0);
-            songProgress.setMax(mediaPlayer.getDuration());
             startProgressUpdater();
 
             mediaPlayer.setOnCompletionListener(mp -> stopCurrentSong());
@@ -257,6 +235,22 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
                 mediaPlayer.start();
                 btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
+        }
+    }
+
+    private void updateSongProgress() {
+        if (mediaPlayer == null) {
+            songProgress.setProgress(0);
+            return;
+        }
+
+        int total = mediaPlayer.getDuration();
+        if (total > 0) {
+            int current = mediaPlayer.getCurrentPosition();
+            int progress = (int) ((current / (float) total) * songProgress.getMax());
+            songProgress.setProgress(progress);
+        } else {
+            songProgress.setProgress(0);
         }
     }
 }
