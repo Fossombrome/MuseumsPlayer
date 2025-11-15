@@ -39,6 +39,8 @@
             android:paddingEnd="24dp"
             android:paddingTop="12dp"
             android:paddingBottom="12dp"
+            android:background="@drawable/background_rounded"
+            android:textColor="@color/white"
             android:text="@string/back_to_main"
             android:textAllCaps="false" />
 
