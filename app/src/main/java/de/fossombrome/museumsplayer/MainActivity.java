@@ -3,11 +3,12 @@ package de.fossombrome.museumsplayer;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -24,7 +25,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
     private RecyclerView recyclerView;
     private LinearLayout playerControls;
-    private Button btnPausePlay, btnRestart, btnStop;
+    private ImageButton btnPausePlay, btnRestart, btnStop;
     private ProgressBar songProgress;
 
     private List<File> audioFiles = new ArrayList<>();
@@ -47,17 +48,36 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         btnRestart = findViewById(R.id.btnRestart);
         btnStop = findViewById(R.id.btnStop);
         songProgress = findViewById(R.id.songProgress);
+        songProgress.setMax(100);
 
         btnPausePlay.setOnClickListener(v -> togglePausePlay());
         btnRestart.setOnClickListener(v -> restartCurrentSong());
         btnStop.setOnClickListener(v -> stopCurrentSong());
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
+        String requiredPermission = getRequiredStoragePermission();
+        if (ContextCompat.checkSelfPermission(this, requiredPermission)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, REQUEST_PERMISSION);
+                    new String[]{requiredPermission}, REQUEST_PERMISSION);
         } else {
             loadMusicFiles();
+        }
+    }
+
+    private String getRequiredStoragePermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return Manifest.permission.READ_MEDIA_AUDIO;
+        }
+        return Manifest.permission.READ_EXTERNAL_STORAGE;
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                loadMusicFiles();
+            }
         }
     }
 
@@ -108,6 +128,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
             currentPlayingFile = musicFile;
             showPlayerControls();
+            songProgress.setProgress(0);
             startProgressUpdater();
 
             mediaPlayer.setOnCompletionListener(mp -> stopCurrentSong());
@@ -121,11 +142,12 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         if (mediaPlayer != null) {
             if (mediaPlayer.isPlaying()) {
                 mediaPlayer.pause();
-                btnPausePlay.setText("▶️");
+                btnPausePlay.setImageResource(R.drawable.ic_play);
             } else {
                 mediaPlayer.start();
-                btnPausePlay.setText("⏸️");
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
+            updateSongProgress();
         }
     }
 
@@ -134,8 +156,9 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             mediaPlayer.seekTo(0);
             if (!mediaPlayer.isPlaying()) {
                 mediaPlayer.start();
-                btnPausePlay.setText("⏸️");
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
+            updateSongProgress();
         }
     }
 
@@ -152,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
     private void showPlayerControls() {
         playerControls.setVisibility(View.VISIBLE);
-        btnPausePlay.setText("⏸️");
+        btnPausePlay.setImageResource(R.drawable.ic_pause);
     }
 
     private void hidePlayerControls() {
@@ -161,16 +184,12 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     }
 
     private void startProgressUpdater() {
+        stopProgressUpdater();
         progressRunnable = new Runnable() {
             @Override
             public void run() {
-                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
-                    int current = mediaPlayer.getCurrentPosition();
-                    int total = mediaPlayer.getDuration();
-                    if (total > 0) {
-                        int progress = (int) ((current / (float) total) * 100);
-                        songProgress.setProgress(progress);
-                    }
+                if (mediaPlayer != null) {
+                    updateSongProgress();
                     progressHandler.postDelayed(this, 500);
                 }
             }
@@ -179,7 +198,25 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     }
 
     private void stopProgressUpdater() {
-        progressHandler.removeCallbacks(progressRunnable);
+        if (progressRunnable != null) {
+            progressHandler.removeCallbacks(progressRunnable);
+        }
         songProgress.setProgress(0);
+    }
+
+    private void updateSongProgress() {
+        if (mediaPlayer == null) {
+            songProgress.setProgress(0);
+            return;
+        }
+
+        int total = mediaPlayer.getDuration();
+        if (total > 0) {
+            int current = mediaPlayer.getCurrentPosition();
+            int progress = (int) ((current / (float) total) * songProgress.getMax());
+            songProgress.setProgress(progress);
+        } else {
+            songProgress.setProgress(0);
+        }
     }
 }
