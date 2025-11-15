@@ -1,7 +1,11 @@
 package de.fossombrome.museumsplayer;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.media.MediaMetadataRetriever;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.StyleSpan;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -41,7 +45,7 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
         File musicFile = musicFiles.get(position);
 
         String songName = loadTitleFromMetadata(musicFile);
-        String lyrics = loadDescriptionFromMetadata(musicFile);
+        SpannableStringBuilder lyrics = loadDescriptionFromMetadata(musicFile);
 
         holder.songTitle.setText(songName);
         holder.songDescription.setText(lyrics);
@@ -90,28 +94,33 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
         }
     }
 
-    private String loadDescriptionFromMetadata(File musicFile) {
+    private SpannableStringBuilder loadDescriptionFromMetadata(File musicFile) {
         MediaMetadataRetriever mmr = new MediaMetadataRetriever();
         try {
             mmr.setDataSource(musicFile.getAbsolutePath());
 
-            String composer = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_COMPOSER);
+            String composer = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST);
+            String interpret = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM);
             String year = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR);
 
-            StringBuilder result = new StringBuilder();
+            SpannableStringBuilder result = new SpannableStringBuilder();
 
-            result.append("Komponist: ")
-                    .append((composer != null && !composer.isEmpty()) ? composer : "<keine Angabe>")
-                    .append("\n");
+            appendBold(result, "Komponist: ");
+            result.append(valueOrMissing(composer));
+            result.append("\n");
 
-            result.append("Jahr: ")
-                    .append((year != null && !year.isEmpty()) ? year : "<keine Angabe>");
+            appendBold(result, "Interpreten: ");
+            result.append(valueOrMissing(interpret));
+            result.append("\n");
 
-            return result.toString();
+            appendBold(result, "Jahr: ");
+            result.append(valueOrMissing(year));
+
+            return result;
 
         } catch (Exception e) {
             e.printStackTrace();
-            return "<Fehler beim Auslesen>";
+            return null;
         } finally {
             try {
                 mmr.release();
@@ -120,4 +129,20 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
             }
         }
     }
+
+    private String valueOrMissing(String v) {
+        return (v != null && !v.isEmpty()) ? v : "<keine Angabe>";
+    }
+
+    private void appendBold(SpannableStringBuilder builder, String text) {
+        int start = builder.length();
+        builder.append(text);
+        builder.setSpan(
+                new StyleSpan(Typeface.BOLD),
+                start,
+                builder.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+    }
+
 }
