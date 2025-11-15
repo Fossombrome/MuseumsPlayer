@@ -60,9 +60,8 @@
             android:src="@drawable/ic_stop"
             android:contentDescription="@string/stop_song" />
 
-        <ProgressBar
+        <SeekBar
             android:id="@+id/songProgress"
-            style="@android:style/Widget.ProgressBar.Horizontal"
             android:layout_width="0dp"
             android:layout_height="6dp"
             android:layout_weight="1"

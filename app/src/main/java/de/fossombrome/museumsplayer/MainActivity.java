@@ -7,10 +7,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -34,8 +35,9 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     private MediaPlayer mediaPlayer;
     private File currentPlayingFile;
 
-    private Handler progressHandler = new Handler();
+    private Handler progressHandler = new Handler(Looper.getMainLooper());
     private Runnable progressRunnable;
+    private boolean userSeeking = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -169,6 +171,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             mediaPlayer = null;
         }
         currentPlayingFile = null;
+        userSeeking = false;
         hidePlayerControls();
         stopProgressUpdater();
     }
@@ -181,6 +184,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
     private void hidePlayerControls() {
         playerControls.setVisibility(View.GONE);
         songProgress.setProgress(0);
+        songProgress.setMax(0);
     }
 
     private void startProgressUpdater() {
@@ -202,6 +206,36 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             progressHandler.removeCallbacks(progressRunnable);
         }
         songProgress.setProgress(0);
+        songProgress.setMax(0);
+    }
+
+    private void updateSongProgress() {
+        if (mediaPlayer == null) {
+            songProgress.setProgress(0);
+            return;
+        }
+
+        int total = mediaPlayer.getDuration();
+        if (total > 0) {
+            int current = mediaPlayer.getCurrentPosition();
+            if (!userSeeking) {
+                songProgress.setMax(total);
+                songProgress.setProgress(current);
+            }
+        } else {
+            songProgress.setProgress(0);
+        }
+    }
+
+    private void seekTo(int progress) {
+        if (mediaPlayer != null) {
+            boolean wasPlaying = mediaPlayer.isPlaying();
+            mediaPlayer.seekTo(progress);
+            if (wasPlaying) {
+                mediaPlayer.start();
+                btnPausePlay.setImageResource(R.drawable.ic_pause);
+            }
+        }
     }
 
     private void updateSongProgress() {
