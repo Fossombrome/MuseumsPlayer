@@ -2,8 +2,6 @@ package de.fossombrome.museumsplayer;
 
 import android.content.Context;
 import android.media.MediaMetadataRetriever;
-import android.media.MediaPlayer;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -19,12 +17,16 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
 
     private final Context context;
     private final List<File> musicFiles;
-    private MediaPlayer mediaPlayer;
-    private File currentPlayingFile;
+    private final OnMusicPlayListener playListener;
 
-    public MusicAdapter(Context context, List<File> musicFiles) {
+    public interface OnMusicPlayListener {
+        void onMusicPlay(File file);
+    }
+
+    public MusicAdapter(Context context, List<File> musicFiles, OnMusicPlayListener playListener) {
         this.context = context;
         this.musicFiles = musicFiles;
+        this.playListener = playListener;
     }
 
     @NonNull
@@ -41,12 +43,14 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
         String songName = loadTitleFromMetadata(musicFile);
         String lyrics = loadDescriptionFromMetadata(musicFile);
 
-        Log.d("LyricsTest", "Lyrics geladen: '" + lyrics + "'");
-
         holder.songTitle.setText(songName);
         holder.songDescription.setText(lyrics);
 
-        holder.playButton.setOnClickListener(v -> playMusic(musicFile));
+        holder.playButton.setOnClickListener(v -> {
+            if (playListener != null) {
+                playListener.onMusicPlay(musicFile);
+            }
+        });
     }
 
     @Override
@@ -65,26 +69,6 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
             playButton = itemView.findViewById(R.id.playButton);
         }
     }
-
-    private void playMusic(File musicFile) {
-        if (mediaPlayer != null) {
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
-
-        try {
-            mediaPlayer = new MediaPlayer();
-            mediaPlayer.setDataSource(musicFile.getAbsolutePath());
-            mediaPlayer.prepare();
-            mediaPlayer.start();
-            currentPlayingFile = musicFile;
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-
 
     private String loadTitleFromMetadata(File musicFile) {
         MediaMetadataRetriever mmr = new MediaMetadataRetriever();
@@ -136,5 +120,4 @@ public class MusicAdapter extends RecyclerView.Adapter<MusicAdapter.MusicViewHol
             }
         }
     }
-
 }

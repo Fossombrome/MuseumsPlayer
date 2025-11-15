@@ -2,25 +2,39 @@ package de.fossombrome.museumsplayer;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMusicPlayListener {
 
     private RecyclerView recyclerView;
-    private Button btnPausePlay;
+    private LinearLayout playerControls;
+    private Button btnPausePlay, btnRestart, btnStop;
+    private ProgressBar songProgress;
+
     private List<File> audioFiles = new ArrayList<>();
     private static final int REQUEST_PERMISSION = 1;
+
+    private MediaPlayer mediaPlayer;
+    private File currentPlayingFile;
+
+    private Handler progressHandler = new Handler();
+    private Runnable progressRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,7 +42,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         recyclerView = findViewById(R.id.recyclerView);
+        playerControls = findViewById(R.id.playerControls);
         btnPausePlay = findViewById(R.id.btnPausePlay);
+        btnRestart = findViewById(R.id.btnRestart);
+        btnStop = findViewById(R.id.btnStop);
+        songProgress = findViewById(R.id.songProgress);
+
+        btnPausePlay.setOnClickListener(v -> togglePausePlay());
+        btnRestart.setOnClickListener(v -> restartCurrentSong());
+        btnStop.setOnClickListener(v -> stopCurrentSong());
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -37,8 +59,6 @@ public class MainActivity extends AppCompatActivity {
         } else {
             loadMusicFiles();
         }
-
-        btnPausePlay.setOnClickListener(v -> togglePausePlay());
     }
 
     @Override
@@ -58,7 +78,8 @@ public class MainActivity extends AppCompatActivity {
     private void loadMusicFiles() {
         File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
         if (musicDir.exists() && musicDir.isDirectory()) {
-            File[] files = musicDir.listFiles((dir, name) -> name.endsWith(".mp3") || name.endsWith(".wav") || name.endsWith(".ogg"));
+            File[] files = musicDir.listFiles((dir, name) ->
+                    name.endsWith(".mp3") || name.endsWith(".wav") || name.endsWith(".ogg"));
 
             if (files != null) {
                 for (File file : files) {
@@ -68,10 +89,97 @@ public class MainActivity extends AppCompatActivity {
         }
 
         recyclerView.setLayoutManager(new GridLayoutManager(this, 3));
-        recyclerView.setAdapter(new MusicAdapter(this, audioFiles));
+        recyclerView.setAdapter(new MusicAdapter(this, audioFiles, this));
+    }
+
+    @Override
+    public void onMusicPlay(File file) {
+        playSong(file);
+    }
+
+    public void playSong(File musicFile) {
+        stopCurrentSong();
+
+        try {
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setDataSource(musicFile.getAbsolutePath());
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+
+            currentPlayingFile = musicFile;
+            showPlayerControls();
+            startProgressUpdater();
+
+            mediaPlayer.setOnCompletionListener(mp -> stopCurrentSong());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private void togglePausePlay() {
-        // Implementiere Pause/Play für aktuell laufendes Lied
+        if (mediaPlayer != null) {
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.pause();
+                btnPausePlay.setText("▶️");
+            } else {
+                mediaPlayer.start();
+                btnPausePlay.setText("⏸️");
+            }
+        }
+    }
+
+    private void restartCurrentSong() {
+        if (mediaPlayer != null) {
+            mediaPlayer.seekTo(0);
+            if (!mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+                btnPausePlay.setText("⏸️");
+            }
+        }
+    }
+
+    private void stopCurrentSong() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+        currentPlayingFile = null;
+        hidePlayerControls();
+        stopProgressUpdater();
+    }
+
+    private void showPlayerControls() {
+        playerControls.setVisibility(View.VISIBLE);
+        btnPausePlay.setText("⏸️");
+    }
+
+    private void hidePlayerControls() {
+        playerControls.setVisibility(View.GONE);
+        songProgress.setProgress(0);
+    }
+
+    private void startProgressUpdater() {
+        progressRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (mediaPlayer != null && mediaPlayer.isPlaying()) {
+                    int current = mediaPlayer.getCurrentPosition();
+                    int total = mediaPlayer.getDuration();
+                    if (total > 0) {
+                        int progress = (int) ((current / (float) total) * 100);
+                        songProgress.setProgress(progress);
+                    }
+                    progressHandler.postDelayed(this, 500);
+                }
+            }
+        };
+        progressHandler.post(progressRunnable);
+    }
+
+    private void stopProgressUpdater() {
+        progressHandler.removeCallbacks(progressRunnable);
+        songProgress.setProgress(0);
     }
 }
