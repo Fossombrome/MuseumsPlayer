@@ -1,6 +1,7 @@
 package de.fossombrome.museumsplayer;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.os.Build;
@@ -11,7 +12,6 @@ import android.os.Looper;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -26,18 +26,22 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
     private RecyclerView recyclerView;
     private LinearLayout playerControls;
-    private ImageButton btnPausePlay, btnRestart, btnStop;
-    private SeekBar songProgress;
+    private ImageButton btnPausePlay, btnRestart, btnStop, btnInfo;
 
     private List<File> audioFiles = new ArrayList<>();
     private static final int REQUEST_PERMISSION = 1;
+    private static final long INACTIVITY_TIMEOUT_MS = 180_000L;
 
     private MediaPlayer mediaPlayer;
     private File currentPlayingFile;
 
-    private Handler progressHandler = new Handler(Looper.getMainLooper());
-    private Runnable progressRunnable;
-    private boolean userSeeking = false;
+    private final Handler inactivityHandler = new Handler(Looper.getMainLooper());
+    private final Runnable inactivityRunnable = new Runnable() {
+        @Override
+        public void run() {
+            openExplanationScreen();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,33 +53,12 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         btnPausePlay = findViewById(R.id.btnPausePlay);
         btnRestart = findViewById(R.id.btnRestart);
         btnStop = findViewById(R.id.btnStop);
-        songProgress = findViewById(R.id.songProgress);
-        songProgress.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && mediaPlayer != null) {
-                    seekTo(progress);
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                userSeeking = true;
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                userSeeking = false;
-                if (mediaPlayer != null) {
-                    seekTo(seekBar.getProgress());
-                    refreshSongProgress();
-                }
-            }
-        });
+        btnInfo = findViewById(R.id.btnInfo);
 
         btnPausePlay.setOnClickListener(v -> togglePausePlay());
         btnRestart.setOnClickListener(v -> restartCurrentSong());
         btnStop.setOnClickListener(v -> stopCurrentSong());
+        btnInfo.setOnClickListener(v -> openExplanationScreen());
 
         String requiredPermission = getRequiredStoragePermission();
         if (ContextCompat.checkSelfPermission(this, requiredPermission)
@@ -85,6 +68,8 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
         } else {
             loadMusicFiles();
         }
+
+        resetInactivityTimer();
     }
 
     private String getRequiredStoragePermission() {
@@ -151,9 +136,6 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
             currentPlayingFile = musicFile;
             showPlayerControls();
-            songProgress.setProgress(0);
-            songProgress.setMax(mediaPlayer.getDuration());
-            startProgressUpdater();
 
             mediaPlayer.setOnCompletionListener(mp -> stopCurrentSong());
 
@@ -171,7 +153,6 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
                 mediaPlayer.start();
                 btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
-            refreshSongProgress();
         }
     }
 
@@ -182,7 +163,6 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
                 mediaPlayer.start();
                 btnPausePlay.setImageResource(R.drawable.ic_pause);
             }
-            refreshSongProgress();
         }
     }
 
@@ -193,9 +173,7 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
             mediaPlayer = null;
         }
         currentPlayingFile = null;
-        userSeeking = false;
         hidePlayerControls();
-        stopProgressUpdater();
     }
 
     private void showPlayerControls() {
@@ -205,58 +183,32 @@ public class MainActivity extends AppCompatActivity implements MusicAdapter.OnMu
 
     private void hidePlayerControls() {
         playerControls.setVisibility(View.GONE);
-        songProgress.setProgress(0);
-        songProgress.setMax(0);
     }
 
-    private void startProgressUpdater() {
-        stopProgressUpdater();
-        progressRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (mediaPlayer != null) {
-                    refreshSongProgress();
-                    progressHandler.postDelayed(this, 500);
-                }
-            }
-        };
-        progressHandler.post(progressRunnable);
+    private void resetInactivityTimer() {
+        inactivityHandler.removeCallbacks(inactivityRunnable);
+        inactivityHandler.postDelayed(inactivityRunnable, INACTIVITY_TIMEOUT_MS);
     }
 
-    private void stopProgressUpdater() {
-        if (progressRunnable != null) {
-            progressHandler.removeCallbacks(progressRunnable);
-        }
-        songProgress.setProgress(0);
-        songProgress.setMax(0);
+    private void openExplanationScreen() {
+        startActivity(new Intent(this, ExplanationActivity.class));
     }
 
-    private void refreshSongProgress() {
-        if (mediaPlayer == null) {
-            songProgress.setProgress(0);
-            return;
-        }
-
-        int total = mediaPlayer.getDuration();
-        if (total > 0) {
-            int current = mediaPlayer.getCurrentPosition();
-            if (!userSeeking) {
-                songProgress.setMax(total);
-                songProgress.setProgress(current);
-            }
-        } else {
-            songProgress.setProgress(0);
-        }
+    @Override
+    public void onUserInteraction() {
+        super.onUserInteraction();
+        resetInactivityTimer();
     }
 
-    private void seekTo(int progress) {
-        if (mediaPlayer != null) {
-            boolean wasPlaying = mediaPlayer.isPlaying();
-            mediaPlayer.seekTo(progress);
-            if (wasPlaying) {
-                mediaPlayer.start();
-                btnPausePlay.setImageResource(R.drawable.ic_pause);
-            }
-        }
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resetInactivityTimer();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        inactivityHandler.removeCallbacks(inactivityRunnable);
     }
 }

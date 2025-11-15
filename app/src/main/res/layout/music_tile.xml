@@ -1,36 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:background="@drawable/background_rounded"
     android:padding="16dp"
     android:layout_margin="8dp"
-    android:elevation="6dp"
-    android:gravity="center">
+    android:elevation="6dp">
 
-    <TextView
-        android:id="@+id/songTitle"
+    <LinearLayout
+        android:id="@+id/textContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:textColor="@color/white"
-        android:textStyle="bold"
-        android:paddingBottom="8dp"/>
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@id/playButton"
+        android:layout_marginEnd="16dp"
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/songDescription"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:textColor="@color/white"
-        android:lineSpacingExtra="6dp"
-        android:paddingBottom="16dp"/>
+        <TextView
+            android:id="@+id/songTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:textStyle="bold"
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:id="@+id/songDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="@color/white"
+            android:lineSpacingExtra="6dp"
+            android:paddingBottom="16dp" />
+
+    </LinearLayout>
 
     <ImageButton
         android:id="@+id/playButton"
         android:layout_width="64dp"
         android:layout_height="64dp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
         android:background="@android:color/transparent"
-        android:src="@android:drawable/ic_media_play"/>
-</LinearLayout>
+        android:src="@android:drawable/ic_media_play"
+        android:contentDescription="@string/play_pause"
+        android:tint="@color/white" />
+
+</RelativeLayout>

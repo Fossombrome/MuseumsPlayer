@@ -3,4 +3,8 @@
     <string name="restart_song">Song von vorne starten</string>
     <string name="play_pause">Song abspielen oder pausieren</string>
     <string name="stop_song">Song stoppen</string>
+    <string name="open_explanation">Zur Startseite mit der Erklärung springen</string>
+    <string name="explanation_title">Was ist dieser Museums Player?</string>
+    <string name="explanation_body">Dieser Platzhaltertext erklärt Besucherinnen und Besuchern die Idee hinter dieser Installation. Hier kann beschrieben werden, wie die Musikstücke ausgewählt wurden, welche Exponate sie begleiten und wie man mit der Oberfläche interagiert. Ersetzen Sie diesen Text durch eine individuelle Geschichte oder Anleitung, die neugierig macht und zum Ausprobieren einlädt.</string>
+    <string name="back_to_main">Zurück zur Musikübersicht</string>
 </resources>
