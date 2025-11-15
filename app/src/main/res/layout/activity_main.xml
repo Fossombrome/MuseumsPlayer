@@ -25,36 +25,51 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
-        android:padding="8dp"
+        android:padding="12dp"
         android:background="@color/backgroundAccent">
 
-        <Button
+        <ImageButton
             android:id="@+id/btnRestart"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="⏮️" />
+            android:background="@android:color/transparent"
+            android:padding="8dp"
+            android:tint="@color/white"
+            android:src="@drawable/ic_skip_back"
+            android:contentDescription="@string/restart_song" />
 
-        <Button
+        <ImageButton
             android:id="@+id/btnPausePlay"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="⏸️"
             android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp" />
+            android:layout_marginEnd="16dp"
+            android:background="@android:color/transparent"
+            android:padding="8dp"
+            android:tint="@color/white"
+            android:src="@drawable/ic_pause"
+            android:contentDescription="@string/play_pause" />
 
-        <Button
+        <ImageButton
             android:id="@+id/btnStop"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="⏹️" />
+            android:background="@android:color/transparent"
+            android:padding="8dp"
+            android:tint="@color/white"
+            android:src="@drawable/ic_stop"
+            android:contentDescription="@string/stop_song" />
 
         <ProgressBar
             android:id="@+id/songProgress"
             style="@android:style/Widget.ProgressBar.Horizontal"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="6dp"
             android:layout_weight="1"
-            android:layout_marginStart="16dp" />
+            android:layout_marginStart="16dp"
+            android:indeterminate="false"
+            android:max="100"
+            android:progressDrawable="@drawable/progress_bar_sleek" />
 
     </LinearLayout>
 
