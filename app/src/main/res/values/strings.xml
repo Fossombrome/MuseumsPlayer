@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">Museums Player</string>
+    <string name="restart_song">Song von vorne starten</string>
+    <string name="play_pause">Song abspielen oder pausieren</string>
+    <string name="stop_song">Song stoppen</string>
 </resources>
